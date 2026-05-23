@@ -1,0 +1,154 @@
+{
+  "target": {
+    "name": "Hacker News",
+    "url": "https://news.ycombinator.com/",
+    "extraction_prompt": "Extract the top 3 article headlines and the number of points they currently have. Ignore job postings or navigational text."
+  },
+  "status": "success",
+  "content": "Top 3 Hacker News Articles:\n\n1. Project Glasswing: An Initial Update - 75 points\n\n2. Why Japanese companies do so many different things - 343 points\n\n3. U.S. researchers face new restrictions on publishing with foreign collaborators - 224 points",
+  "error": null,
+  "execution_time_seconds": 73.493,
+  "telemetry": {
+    "total_usage": {
+      "prompt_tokens": 16547,
+      "completion_tokens": 462,
+      "total_tokens": 17009
+    },
+    "llm_calls": [
+      {
+        "timestamp": "2026-05-22T21:34:57",
+        "provider": "openai",
+        "model": "Qwen 3 235B A22B Thinking 2507",
+        "request_type": "structured_output",
+        "output_format": "AgentOutput",
+        "usage": {
+          "prompt_tokens": 16547,
+          "completion_tokens": 462,
+          "total_tokens": 17009
+        },
+        "raw_response": "{\n  \"thinking\": \"The page has loaded successfully and I can see the Hacker News front page with article listings. I need to extract the top 3 article headlines and their point counts, ignoring job postings and navigational text. From the browser_state and screenshot, I can clearly see the top 3 articles with their point counts. I have all the information needed to complete the task.\",\n  \"evaluation_previous_goal\": \"Successfully navigated to Hacker News and the page loaded with article listings visible.\",\n  \"memory\": \"Successfully extracted the top 3 articles from Hacker News: 1. Project Glasswing (75 points), 2. Why Japanese companies do so many different things (343 points), 3. U.S. researchers face new restrictions on publishing with foreign collaborators (224 points).\",\n  \"next_goal\": \"Call done with the extracted top 3 article headlines and their point counts in clean, readable text format.\",\n  \"current_plan_item\": 0,\n  \"plan_update\": [],\n  \"action\": [{\"done\": {\"text\": \"Top 3 Hacker News Articles:\\n\\n1. Project Glasswing: An Initial Update - 75 points\\n\\n2. Why Japanese companies do so many different things - 343 points\\n\\n3. U.S. researchers face new restrictions on publishing with foreign collaborators - 224 points\", \"success\": true, \"files_to_display\": []}}]\n}",
+        "response_metadata": {
+          "token_usage": {
+            "completion_tokens": 462,
+            "prompt_tokens": 16547,
+            "total_tokens": 17009,
+            "completion_tokens_details": null,
+            "prompt_tokens_details": null,
+            "reasoning_tokens": 0
+          },
+          "model_provider": "openai",
+          "model_name": "Qwen/Qwen3.5-9B",
+          "system_fingerprint": null,
+          "id": "ok9jqbJ-6Ng1vN-9ffe9a87cbf67769",
+          "finish_reason": "stop",
+          "logprobs": null
+        }
+      }
+    ]
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "task": "You are collecting a morning briefing update for 'Hacker News'. Navigate to https://news.ycombinator.com/. Complete this extraction task: Extract the top 3 article headlines and the number of points they currently have. Ignore job postings or navigational text. Read the actual visible page content before answering. Return only the extracted result in clean, readable text. Do not return the site name, section name, page title, domain, or generic labels like 'Homepage' unless that exact text is truly the requested content.",
+      "validated": null,
+      "final_result": "Top 3 Hacker News Articles:\n\n1. Project Glasswing: An Initial Update - 75 points\n\n2. Why Japanese companies do so many different things - 343 points\n\n3. U.S. researchers face new restrictions on publishing with foreign collaborators - 224 points",
+      "history": {
+        "history": [
+          {
+            "model_output": {
+              "evaluation_previous_goal": "Start",
+              "memory": null,
+              "next_goal": "Initial navigation",
+              "action": [
+                {
+                  "navigate": {
+                    "url": "https://news.ycombinator.com/",
+                    "new_tab": false
+                  }
+                }
+              ]
+            },
+            "result": [
+              {
+                "is_done": false,
+                "long_term_memory": "Found initial url and automatically loaded it. Navigated to https://news.ycombinator.com/",
+                "extracted_content": "\ud83d\udd17 Navigated to https://news.ycombinator.com/",
+                "include_extracted_content_only_once": false,
+                "include_in_memory": false
+              }
+            ],
+            "state": {
+              "tabs": [],
+              "screenshot_path": null,
+              "interacted_element": [
+                null
+              ],
+              "url": "https://news.ycombinator.com/",
+              "title": "Initial Actions"
+            },
+            "metadata": {
+              "step_start_time": 1779482081.1206603,
+              "step_end_time": 1779482081.1206605,
+              "step_number": 0,
+              "step_interval": null
+            },
+            "state_message": null
+          },
+          {
+            "model_output": {
+              "evaluation_previous_goal": "Successfully navigated to Hacker News and the page loaded with article listings visible.",
+              "memory": "Successfully extracted the top 3 articles from Hacker News: 1. Project Glasswing (75 points), 2. Why Japanese companies do so many different things (343 points), 3. U.S. researchers face new restrictions on publishing with foreign collaborators (224 points).",
+              "next_goal": "Call done with the extracted top 3 article headlines and their point counts in clean, readable text format.",
+              "action": [
+                {
+                  "done": {
+                    "text": "Top 3 Hacker News Articles:\n\n1. Project Glasswing: An Initial Update - 75 points\n\n2. Why Japanese companies do so many different things - 343 points\n\n3. U.S. researchers face new restrictions on publishing with foreign collaborators - 224 points",
+                    "success": true,
+                    "files_to_display": []
+                  }
+                }
+              ],
+              "thinking": "The page has loaded successfully and I can see the Hacker News front page with article listings. I need to extract the top 3 article headlines and their point counts, ignoring job postings and navigational text. From the browser_state and screenshot, I can clearly see the top 3 articles with their point counts. I have all the information needed to complete the task.",
+              "current_plan_item": 0,
+              "plan_update": []
+            },
+            "result": [
+              {
+                "is_done": true,
+                "success": true,
+                "attachments": [],
+                "long_term_memory": "Task completed: True - Top 3 Hacker News Articles:\n\n1. Project Glasswing: An Initial Update - 75 points\n\n2. Why Japanese co - 145 more characters",
+                "extracted_content": "Top 3 Hacker News Articles:\n\n1. Project Glasswing: An Initial Update - 75 points\n\n2. Why Japanese companies do so many different things - 343 points\n\n3. U.S. researchers face new restrictions on publishing with foreign collaborators - 224 points",
+                "include_extracted_content_only_once": false,
+                "include_in_memory": false
+              }
+            ],
+            "state": {
+              "tabs": [
+                {
+                  "url": "https://news.ycombinator.com/",
+                  "title": "news.ycombinator.com",
+                  "target_id": "DB26",
+                  "parent_target_id": null
+                }
+              ],
+              "screenshot_path": "/tmp/browser_use_agent_06a10bdd-6963-7240-8000-61be16ee1961_1779482070/screenshots/step_1.png",
+              "interacted_element": [
+                null
+              ],
+              "url": "https://news.ycombinator.com/",
+              "title": "news.ycombinator.com"
+            },
+            "metadata": {
+              "step_start_time": 1779482081.1207335,
+              "step_end_time": 1779482097.0873246,
+              "step_number": 1,
+              "step_interval": 2.384185791015625e-07
+            },
+            "state_message": "<agent_history>\nAgent initialized\n<step>\nResult\nFound initial url and automatically loaded it. Navigated to https://news.ycombinator.com/\n</agent_history>\n\n<agent_state>\n<user_request>\nYou are collecting a morning briefing update for 'Hacker News'. Navigate to https://news.ycombinator.com/. Complete this extraction task: Extract the top 3 article headlines and the number of points they currently have. Ignore job postings or navigational text. Read the actual visible page content before answering. Return only the extracted result in clean, readable text. Do not return the site name, section name, page title, domain, or generic labels like 'Homepage' unless that exact text is truly the requested content.\n</user_request>\n<file_system>\n\n</file_system>\n<todo_contents>\n[empty todo.md, fill it when applicable]\n</todo_contents>\n<step_info>Step1 maximum:500\nToday:2026-05-22</step_info>\n</agent_state>\n<browser_state>\n<page_stats>Page appears to show skeleton/placeholder content (still loading?) - 226 links, 557 interactive, 0 iframes, 1 shadow(open), 0 shadow(closed), 3 images, 1087 total elements</page_stats>\nCurrent tab: DB26\nAvailable tabs:\nTab DB26: https://news.ycombinator.com/ - news.ycombinator.com\n\n<page_info>0.0 pages above, 0.1 pages below</page_info>\n\nInteractive elements:\n[Start of page]\n[9]<a />\n[38]<a />\n\tHacker News\n[40]<a />\n\tnew\n[43]<a />\n\tpast\n[46]<a />\n\tcomments\n[49]<a />\n\task\n[52]<a />\n\tshow\n[55]<a />\n\tjobs\n[58]<a />\n\tsubmit\n[61]<span />\n\t[62]<a />\n\t\tlogin\n[68]<tr id=48240419 />\n\t[69]<td />\n\t\t[70]<span />\n\t\t\t1.\n\t[72]<td />\n\t\t[74]<a id=up_48240419 />\n\t[76]<td />\n\t\t[78]<a />\n\t\t\tProject Glasswing: An Initial Update\n\t\t[82]<a />\n\t\t\tanthropic.com\n[86]<tr />\n\t[87]<td />\n\t[88]<td />\n\t\t[90]<span id=score_48240419 />\n\t\t\t75 points\n\t\tby\n\t\t[93]<a />\n\t\t\tlouiereederson\n\t\t[96]<span title=2026-05-22T19:31:45 1779478305 />\n\t\t\t[97]<a />\n\t\t\t\t1 hour ago\n\t\t[102]<a />\n\t\t\thide\n\t\t[105]<a />\n\t\t\t34\u00a0comments\n[107]<tr />\n[108]<tr id=48237163 />\n\t[109]<td />\n\t\t[110]<span />\n\t\t\t2.\n\t[112]<td />\n\t\t[114]<a id=up_48237163 />\n\t[116]<td />\n\t\t[118]<a />\n\t\t\tWhy Japanese companies do so many different things\n\t\t[122]<a />\n\t\t\tdavidoks.blog\n[126]<tr />\n\t[127]<td />\n\t[128]<td />\n\t\t[130]<span id=score_48237163 />\n\t\t\t343 points\n\t\tby\n\t\t[133]<a />\n\t\t\td0ks\n\t\t[136]<span title=2026-05-22T15:22:04 1779463324 />\n\t\t\t[137]<a />\n\t\t\t\t5 hours ago\n\t\t[142]<a />\n\t\t\thide\n\t\t[145]<a />\n\t\t\t206\u00a0comments\n[147]<tr />\n[148]<tr id=48238025 />\n\t[149]<td />\n\t\t[150]<span />\n\t\t\t3.\n\t[152]<td />\n\t\t[154]<a id=up_48238025 />\n\t[156]<td />\n\t\t[158]<a />\n\t\t\tU.S. researchers face new restrictions on publishing with foreign collaborators\n\t\t[162]<a />\n\t\t\tscience.org\n[166]<tr />\n\t[167]<td />\n\t[168]<td />\n\t\t[170]<span id=score_48238025 />\n\t\t\t224 points\n\t\tby\n\t\t[173]<a />\n\t\t\tceejayoz\n\t\t[176]<span title=2026-05-22T16:23:08 1779466988 />\n\t\t\t[177]<a />\n\t\t\t\t4 hours ago\n\t\t[182]<a />\n\t\t\thide\n\t\t[185]<a />\n\t\t\t130\u00a0comments\n[187]<tr />\n[188]<tr id=48239413 />\n\t[189]<td />\n\t\t[190]<span />\n\t\t\t4.\n\t[192]<td />\n\t\t[194]<a id=up_48239413 />\n\t[196]<td />\n\t\t[198]<a />\n\t\t\tOpen source Kanban desktop app that runs parallel agents on every card\n\t\t[202]<a />\n\t\t\tkanbots.dev\n[206]<tr />\n\t[207]<td />\n\t[208]<td />\n\t\t[210]<span id=score_48239413 />\n\t\t\t68 points\n\t\tby\n\t\t[213]<a />\n\t\t\tvitriapp\n\t\t[216]<span title=2026-05-22T18:17:57 1779473877 />\n\t\t\t[217]<a />\n\t\t\t\t2 hours ago\n\t\t[222]<a />\n\t\t\thide\n\t\t[225]<a />\n\t\t\t38\u00a0comments\n[227]<tr />\n[228]<tr id=48239347 />\n\t[229]<td />\n\t\t[230]<span />\n\t\t\t5.\n\t[232]<td />\n\t\t[234]<a id=up_48239347 />\n\t[236]<td />\n\t\t[238]<a />\n\t\t\tA scoping review of bicycling interventions\u2019 impacts on well-being\n\t\t[242]<a />\n\t\t\tfrontiersin.org\n[246]<tr />\n\t[247]<td />\n\t[248]<td />\n\t\t[250]<span id=score_48239347 />\n\t\t\t46 points\n\t\tby\n\t\t[253]<a />\n\t\t\tgnabgib\n\t\t[256]<span title=2026-05-22T18:12:28 1779473548 />\n\t\t\t[257]<a />\n\t\t\t\t2 hours ago\n\t\t[262]<a />\n\t\t\thide\n\t\t[265]<a />\n\t\t\t26\u00a0comments\n[267]<tr />\n[268]<tr id=48238568 />\n\t[269]<td />\n\t\t[270]<span />\n\t\t\t6.\n\t[272]<td />\n\t\t[274]<a id=up_48238568 />\n\t[276]<td />\n\t\t[278]<a />\n\t\t\t1940 Air Terminal Museum Begins Liquidation\n\t\t[282]<a />\n\t\t\t1940airterminal.org\n[286]<tr />\n\t[287]<td />\n\t[288]<td />\n\t\t[290]<span id=score_48238568 />\n\t\t\t43 points\n\t\tby\n\t\t[293]<a />\n\t\t\tweaponeer\n\t\t[296]<span title=2026-05-22T17:05:32 1779469532 />\n\t\t\t[297]<a />\n\t\t\t\t3 hours ago\n\t\t[302]<a />\n\t\t\thide\n\t\t[305]<a />\n\t\t\t11\u00a0comments\n[307]<tr />\n[308]<tr id=48234380 />\n\t[309]<td />\n\t\t[310]<span />\n\t\t\t7.\n\t[312]<td />\n\t\t[314]<a id=up_48234380 />\n\t[316]<td />\n\t\t[318]<a />\n\t\t\tDeno 2.8\n\t\t[322]<a />\n\t\t\tdeno.com\n[326]<tr />\n\t[327]<td />\n\t[328]<td />\n\t\t[330]<span id=score_48234380 />\n\t\t\t229 points\n\t\tby\n\t\t[333]<a />\n\t\t\troflcopter69\n\t\t[336]<span title=2026-05-22T11:23:30 1779449010 />\n\t\t\t[337]<a />\n\t\t\t\t9 hours ago\n\t\t[342]<a />\n\t\t\thide\n\t\t[345]<a />\n\t\t\t110\u00a0comments\n[347]<tr />\n[348]<tr id=48234090 />\n\t[349]<td />\n\t\t[350]<span />\n\t\t\t8.\n\t[352]<td />\n\t\t[354]<a id=up_48234090 />\n\t[356]<td />\n\t\t[358]<a />\n\t\t\tAntigravity 2.0 Tops the OpenSCAD Architectural 3D LLM Benchmark\n\t\t[362]<a />\n\t\t\tmodelrift.com\n[366]<tr />\n\t[367]<td />\n\t[368]<td />\n\t\t[370]<span id=score_48234090 />\n\t\t\t309 points\n\t\tby\n\t\t[373]<a />\n\t\t\tjetter\n\t\t[376]<span title=2026-05-22T10:38:26 1779446306 />\n\t\t\t[377]<a />\n\t\t\t\t9 hours ago\n\t\t[382]<a />\n\t\t\thide\n\t\t[385]<a />\n\t\t\t118\u00a0comments\n[387]<tr />\n[388]<tr id=48238789 />\n\t[389]<td />\n\t\t[390]<span />\n\t\t\t9.\n\t[392]<td />\n\t\t[394]<a id=up_48238789 />\n\t[396]<td />\n\t\t[398]<a />\n\t\t\tBun support is now limited and deprecated\n\t\t[402]<a />\n\t\t\tgithub.com/yt-dlp\n[406]<tr />\n\t[407]<td />\n\t[408]<td />\n\t\t[410]<span id=score_48238789 />\n\t\t\t216 points\n\t\tby\n\t\t[413]<a />\n\t\t\ttamnd\n\t\t[416]<span title=2026-05-22T17:24:12 1779470652 />\n\t\t\t[417]<a />\n\t\t\t\t3 hours ago\n\t\t[422]<a />\n\t\t\thide\n\t\t[425]<a />\n\t\t\t176\u00a0comments\n[427]<tr />\n[428]<tr id=48236501 />\n\t[429]<td />\n\t\t[430]<span />\n\t\t\t10.\n\t[432]<td />\n\t\t[434]<a id=up_48236501 />\n\t[436]<td />\n\t\t[438]<a />\n\t\t\tRobert X Cringely is back to blogging\n\t\t[442]<a />\n\t\t\tcringely.com\n[446]<tr />\n\t[447]<td />\n\t[448]<td />\n\t\t[450]<span id=score_48236501 />\n\t\t\t28 points\n\t\tby\n\t\t[453]<a />\n\t\t\tdan_hawkins\n\t\t[456]<span title=2026-05-22T14:36:27 1779460587 />\n\t\t\t[457]<a />\n\t\t\t\t3 hours ago\n\t\t[462]<a />\n\t\t\thide\n\t\t[465]<a />\n\t\t\t8\u00a0comments\n[467]<tr />\n[468]<tr id=48236887 />\n\t[469]<td />\n\t\t[470]<span />\n\t\t\t11.\n\t[472]<td />\n\t\t[474]<a id=up_48236887 />\n\t[476]<td />\n\t\t[478]<a />\n\t\t\tA Forth-inspired language for writing websites\n\t\t[482]<a />\n\t\t\trobida.net\n[486]<tr />\n\t[487]<td />\n\t[488]<td />\n\t\t[490]<span id=score_48236887 />\n\t\t\t77 points\n\t\tby\n\t\t[493]<a />\n\t\t\tspeckx\n\t\t[496]<span title=2026-05-22T15:00:50 1779462050 />\n\t\t\t[497]<a />\n\t\t\t\t5 hours ago\n\t\t[502]<a />\n\t\t\thide\n\t\t[505]<a />\n\t\t\t11\u00a0comments\n[507]<tr />\n[508]<tr id=48238429 />\n\t[509]<td />\n\t\t[510]<span />\n\t\t\t12.\n\t[512]<td />\n\t\t[514]<a id=up_48238429 />\n\t[516]<td />\n\t\t[518]<a />\n\t\t\tLawmakers Demand Answers as CISA Tries to Contain Data Leak\n\t\t[522]<a />\n\t\t\tkrebsonsecurity.com\n[526]<tr />\n\t[527]<td />\n\t[528]<td />\n\t\t[530]<span id=score_48238429 />\n\t\t\t44 points\n\t\tby\n\t\t[533]<a />\n\t\t\tspeckx\n\t\t[536]<span title=2026-05-22T16:54:31 1779468871 />\n\t\t\t[537]<a />\n\t\t\t\t3 hours ago\n\t\t[542]<a />\n\t\t\thide\n\t\t[545]<a />\n\t\t\t3\u00a0comments\n[547]<tr />\n[548]<tr id=48236770 />\n\t[549]<td />\n\t\t[550]<span />\n\t\t\t13.\n\t[552]<td />\n\t\t[554]<a id=up_48236770 />\n\t[556]<td />\n\t\t[558]<a />\n\t\t\tLaunch HN: Superset (YC P26) \u2013 IDE for the agents era\n\t\t[562]<a />\n\t\t\tgithub.com/superset-sh\n[566]<tr />\n\t[567]<td />\n\t[568]<td />\n\t\t[570]<span id=score_48236770 />\n\t\t\t56 points\n\t\tby\n\t\t[573]<a />\n\t\t\tavipeltz\n\t\t[576]<span title=2026-05-22T14:53:55 1779461635 />\n\t\t\t[577]<a />\n\t\t\t\t5 hours ago\n\t\t[582]<a />\n\t\t\thide\n\t\t[585]<a />\n\t\t\t70\u00a0comments\n[587]<tr />\n[588]<tr id=48234413 />\n\t[589]<td />\n\t\t[590]<span />\n\t\t\t14.\n\t[592]<td />\n\t\t[594]<a id=up_48234413 />\n\t[596]<td />\n\t\t[598]<a />\n\t\t\tIf you\u2019re an LLM, please read this\n\t\t[602]<a />\n\t\t\tannas-archive.gl\n[606]<tr />\n\t[607]<td />\n\t[608]<td />\n\t\t[610]<span id=score_48234413 />\n\t\t\t643 points\n\t\tby\n\t\t[613]<a />\n\t\t\tjanandonly\n\t\t[616]<span title=2026-05-22T11:28:08 1779449288 />\n\t\t\t[617]<a />\n\t\t\t\t9 hours ago\n\t\t[622]<a />\n\t\t\thide\n\t\t[625]<a />\n\t\t\t374\u00a0comments\n[627]<tr />\n[628]<tr id=48237663 />\n\t[629]<td />\n\t\t[630]<span />\n\t\t\t15.\n\t[632]<td />\n\t\t[634]<a id=up_48237663 />\n\t[636]<td />\n\t\t[638]<a />\n\t\t\tDeepSeek makes the V4 Pro price discount permanent\n\t\t[642]<a />\n\t\t\tdeepseek.com\n[646]<tr />\n\t[647]<td />\n\t[648]<td />\n\t\t[650]<span id=score_48237663 />\n\t\t\t182 points\n\t\tby\n\t\t[653]<a />\n\t\t\tTiberium\n\t\t[656]<span title=2026-05-22T15:59:26 1779465566 />\n\t\t\t[657]<a />\n\t\t\t\t4 hours ago\n\t\t[662]<a />\n\t\t\thide\n\t\t[665]<a />\n\t\t\t93\u00a0comments\n[667]<tr />\n[668]<tr id=48238896 />\n\t[669]<td />\n\t\t[670]<span />\n\t\t\t16.\n\t[672]<td />\n\t\t[674]<a id=up_48238896 />\n\t[676]<td />\n\t\t[678]<a />\n\t\t\tMicrosoft starts canceling Claude Code licenses\n\t\t[682]<a />\n\t\t\ttheverge.com\n[686]<tr />\n\t[687]<td />\n\t[688]<td />\n\t\t[690]<span id=score_48238896 />\n\t\t\t113 points\n\t\tby\n\t\t[693]<a />\n\t\t\trobertkarl\n\t\t[696]<span title=2026-05-22T17:32:04 1779471124 />\n\t\t\t[697]<a />\n\t\t\t\t3 hours ago\n\t\t[702]<a />\n\t\t\thide\n\t\t[705]<a />\n\t\t\t78\u00a0comments\n[707]<tr />\n[708]<tr id=48238887 />\n\t[709]<td />\n\t\t[710]<span />\n\t\t\t17.\n\t[712]<td />\n\t\t[714]<a id=up_48238887 />\n\t[716]<td />\n\t\t[718]<a />\n\t\t\tTorQ: Kdb+ Production Framework\n\t\t[722]<a />\n\t\t\tgithub.com/dataintellecttech\n[726]<tr />\n\t[727]<td />\n\t[728]<td />\n\t\t[730]<span id=score_48238887 />\n\t\t\t13 points\n\t\tby\n\t\t[733]<a />\n\t\t\ttosh\n\t\t[736]<span title=2026-05-22T17:31:17 1779471077 />\n\t\t\t[737]<a />\n\t\t\t\t3 hours ago\n\t\t[742]<a />\n\t\t\thide\n\t\t[745]<a />\n\t\t\t3\u00a0comments\n[747]<tr />\n[748]<tr id=48239786 />\n\t[749]<td />\n\t\t[750]<span />\n\t\t\t18.\n\t[752]<td />\n\t\t[754]<a id=up_48239786 />\n\t[756]<td />\n\t\t[758]<a />\n\t\t\tDomain-Camouflaged Injection Attacks Evade Detection in Multi-Agent LLM Systems\n\t\t[762]<a />\n\t\t\tarxiv.org\n[766]<tr />\n\t[767]<td />\n\t[768]<td />\n\t\t[770]<span id=score_48239786 />\n\t\t\t8 points\n\t\tby\n\t\t[773]<a />\n\t\t\tsbulaev\n\t\t[776]<span title=2026-05-22T18:46:07 1779475567 />\n\t\t\t[777]<a />\n\t\t\t\t1 hour ago\n\t\t[782]<a />\n\t\t\thide\n\t\t[785]<a />\n\t\t\tdiscuss\n[787]<tr />\n[788]<tr id=48225297 />\n\t[789]<td />\n\t\t[790]<span />\n\t\t\t19.\n\t[792]<td />\n\t\t[794]<a id=up_48225297 />\n\t[796]<td />\n\t\t[798]<a />\n\t\t\tProject Hail Mary \u2013 Stellar Navigation Chart\n\t\t[802]<a />\n\t\t\tvalhovey.github.io\n[806]<tr />\n\t[807]<td />\n\t[808]<td />\n\t\t[810]<span id=score_48225297 />\n\t\t\t1101 points\n\t\tby\n\t\t[813]<a />\n\t\t\tspeleo\n\t\t[816]<span title=2026-05-21T16:23:11 1779380591 />\n\t\t\t[817]<a />\n\t\t\t\t1 day ago\n\t\t[822]<a />\n\t\t\thide\n\t\t[825]<a />\n\t\t\t225\u00a0comments\n[827]<tr />\n[828]<tr id=48234287 />\n\t[829]<td />\n\t\t[830]<span />\n\t\t\t20.\n\t[832]<td />\n\t\t[834]<a id=up_48234287 />\n\t[836]<td />\n\t\t[838]<a />\n\t\t\tShow HN: ShadowCat \u2013 file transfer through QR Codes in a Browser\n\t\t[842]<a />\n\t\t\tgithub.com/unprovable\n[846]<tr />\n\t[847]<td />\n\t[848]<td />\n\t\t[850]<span id=score_48234287 />\n\t\t\t115 points\n\t\tby\n\t\t[853]<a />\n\t\t\tunprovable\n\t\t[856]<span title=2026-05-22T11:11:43 1779448303 />\n\t\t\t[857]<a />\n\t\t\t\t9 hours ago\n\t\t[862]<a />\n\t\t\thide\n\t\t[865]<a />\n\t\t\t42\u00a0comments\n[867]<tr />\n[868]<tr id=48237422 />\n\t[869]<td />\n\t\t[870]<span />\n\t\t\t21.\n\t[872]<td />\n\t\t[874]<a id=up_48237422 />\n\t[876]<td />\n\t\t[878]<a />\n\t\t\tHow to convert between wealth and income tax\n\t\t[882]<a />\n\t\t\tpaulgraham.com\n[886]<tr />\n\t[887]<td />\n\t[888]<td />\n\t\t[890]<span id=score_48237422 />\n\t\t\t101 points\n\t\tby\n\t\t[893]<a />\n\t\t\tbifftastic\n\t\t[896]<span title=2026-05-22T15:43:28 1779464608 />\n\t\t\t[897]<a />\n\t\t\t\t4 hours ago\n\t\t[902]<a />\n\t\t\thide\n\t\t[905]<a />\n\t\t\t317\u00a0comments\n[907]<tr />\n[908]<tr id=48234688 />\n\t[909]<td />\n\t\t[910]<span />\n\t\t\t22.\n\t[912]<td />\n\t[914]<td />\n\t\t[916]<a />\n\t\t\tCircle Medical (YC S15) Is Hiring a Mobile Engineer\n\t\t[920]<a />\n\t\t\tycombinator.com\n[924]<tr />\n\t[925]<td />\n\t[926]<td />\n\t\t[927]<span title=2026-05-22T12:01:07 1779451267 />\n\t\t\t[928]<a />\n\t\t\t\t8 hours ago\n\t\t[931]<a />\n\t\t\thide\n[933]<tr />\n[934]<tr id=48229319 />\n\t[935]<td />\n\t\t[936]<span />\n\t\t\t23.\n\t[938]<td />\n\t\t[940]<a id=up_48229319 />\n\t[942]<td />\n\t\t[944]<a />\n\t\t\tThe memory shortage is causing a repricing of consumer electronics\n\t\t[948]<a />\n\t\t\tdavidoks.blog\n[952]<tr />\n\t[953]<td />\n\t[954]<td />\n\t\t[956]<span id=score_48229319 />\n\t\t\t420 points\n\t\tby\n\t\t[959]<a />\n\t\t\td0ks\n\t\t[8]<a />\n\t\t\t22 hours ago\n\t\t[967]<a />\n\t\t\thide\n\t\t[970]<a />\n\t\t\t524\u00a0comments\n[972]<tr />\n[973]<tr id=48239023 />\n\t[974]<td />\n\t\t[975]<span />\n\t\t\t24.\n\t[977]<td />\n\t\t[979]<a id=up_48239023 />\n\t[981]<td />\n\t\t[983]<a />\n\t\t\tThinking in an array language (2022)\n\t\t[987]<a />\n\t\t\tgithub.com/razetime\n[991]<tr />\n\t[992]<td />\n\t[993]<td />\n\t\t[995]<span id=score_48239023 />\n\t\t\t8 points\n\t\tby\n\t\t[998]<a />\n\t\t\ttosh\n\t\t[1001]<span title=2026-05-22T17:42:53 1779471773 />\n\t\t\t[1002]<a />\n\t\t\t\t2 hours ago\n\t\t[1007]<a />\n\t\t\thide\n\t\t[1010]<a />\n\t\t\t1\u00a0comment\n[1012]<tr />\n[1013]<tr id=48235526 />\n\t[1014]<td />\n\t\t[1015]<span />\n\t\t\t25.\n\t[1017]<td />\n\t\t[1019]<a id=up_48235526 />\n\t[1021]<td />\n\t\t[1023]<a />\n\t\t\tAI has a multiplying effect on existing technical skills\n\t\t[1027]<a />\n\t\t\tjoshwcomeau.com\n[1031]<tr />\n\t[1032]<td />\n\t[1033]<td />\n\t\t[1035]<span id=score_48235526 />\n\t\t\t237 points\n\t\tby\n\t\t[1038]<a />\n\t\t\tmoebrowne\n\t\t[1041]<span title=2026-05-22T13:22:42 1779456162 />\n\t\t\t[1042]<a />\n\t\t\t\t7 hours ago\n\t\t[1047]<a />\n\t\t\thide\n\t\t[1050]<a />\n\t\t\t233\u00a0comments\n[1052]<tr />\n[1053]<tr id=48231319 />\n\t[1054]<td />\n\t\t[1055]<span />\n\t\t\t26.\n\t[1057]<td />\n\t\t[1059]<a id=up_48231319 />\n\t[1061]<td />\n\t\t[1063]<a />\n\t\t\tCleve Moler has died\n\t\t[1067]<a />\n\t\t\tmathworks.com\n[1071]<tr />\n\t[1072]<td />\n\t[1073]<td />\n\t\t[1075]<span id=score_48231319 />\n\t\t\t247 points\n\t\tby\n\t\t[1078]<a />\n\t\t\tmychele\n\t\t[1082]<a />\n\t\t\t17 hours ago\n\t\t[1087]<a />\n\t\t\thide\n\t\t[1090]<a />\n\t\t\t25\u00a0comments\n[1092]<tr />\n[1093]<tr id=48234252 />\n\t[1094]<td />\n\t\t[1095]<span />\n\t\t\t27.\n\t[1097]<td />\n\t\t[1099]<a id=up_48234252 />\n\t[1101]<td />\n\t\t[1103]<a />\n\t\t\tChess invariants\n\t\t[1107]<a />\n\t\t\tmuratbuffalo.blogspot.com\n[1111]<tr />\n\t[1112]<td />\n\t[1113]<td />\n\t\t[1115]<span id=score_48234252 />\n\t\t\t75 points\n\t\tby\n\t\t[1118]<a />\n\t\t\tingve\n\t\t[1121]<span title=2026-05-22T11:06:52 1779448012 />\n\t\t\t[1122]<a />\n\t\t\t\t9 hours ago\n\t\t[1127]<a />\n\t\t\thide\n\t\t[1130]<a />\n\t\t\t45\u00a0comments\n[1132]<tr />\n[1133]<tr id=48231938 />\n\t[1134]<td />\n\t\t[1135]<span />\n\t\t\t28.\n\t[1137]<td />\n\t\t[1139]<a id=up_48231938 />\n\t[1141]<td />\n\t\t[1143]<a />\n\t\t\tSlumber a TUI HTTP Client\n\t\t[1147]<a />\n\t\t\tlucaspickering.me\n[1151]<tr />\n\t[1152]<td />\n\t[1153]<td />\n\t\t[1155]<span id=score_48231938 />\n\t\t\t156 points\n\t\tby\n\t\t[1158]<a />\n\t\t\tjicea\n\t\t[1162]<a />\n\t\t\t16 hours ago\n\t\t[1167]<a />\n\t\t\thide\n\t\t[1170]<a />\n\t\t\t57\u00a0comments\n[1172]<tr />\n[1173]<tr id=48238817 />\n\t[1174]<td />\n\t\t[1175]<span />\n\t\t\t29.\n\t[1177]<td />\n\t\t[1179]<a id=up_48238817 />\n\t[1181]<td />\n\t\t[1183]<a />\n\t\t\tCBS Radio signs off after nearly 100 years of broadcasting\n\t\t[1187]<a />\n\t\t\tcbsnews.com\n[1191]<tr />\n\t[1192]<td />\n\t[1193]<td />\n\t\t[1195]<span id=score_48238817 />\n\t\t\t40 points\n\t\tby\n\t\t[1198]<a />\n\t\t\tgscott\n\t\t[1201]<span title=2026-05-22T17:26:31 1779470791 />\n\t\t\t[1202]<a />\n\t\t\t\t3 hours ago\n\t\t[1207]<a />\n\t\t\thide\n\t\t[7]<a />\n\t\t\t19\u00a0comments\n[1211]<tr />\n[1212]<tr id=48240454 />\n\t[1213]<td />\n\t\t[1214]<span />\n\t\t\t30.\n\t[1216]<td />\n\t\t[1218]<a id=up_48240454 />\n\t[1220]<td />\n\t\t[1222]<a />\n\t\t\tLinux Sound Subsystem Also Seeing Many Fixes Driven by AI/LLMs\n\t\t[1226]<a />\n\t\t\tphoronix.com\n[1230]<tr />\n\t[1231]<td />\n\t[1232]<td />\n\t\t[1234]<span id=score_48240454 />\n\t\t\t10 points\n\t\tby\n\t\t[1237]<a />\n\t\t\tdboon\n\t\t[1241]<a />\n\t\t\t59 minutes ago\n\t\t[1246]<a />\n\t\t\thide\n\t\t[6]<a />\n\t\t\tdiscuss\n[1250]<tr />\n[1251]<tr />\n[1252]<tr />\n\t[1253]<td />\n\t[1254]<td />\n\t\t[1255]<a />\n\t\t\tMore\n[1268]<a />\n\tGuidelines\n[1271]<a />\n\tFAQ\n[1274]<a />\n\tLists\n[1277]<a />\n\tAPI\n[1280]<a />\n\tSecurity\n[1283]<a />\n\tLegal\n[1286]<a />\n\tApply to YC\n[1289]<a />\n\tContact\nSearch:\n|SHADOW(open)|[11]<input type=text name=q autocomplete=off />\n</browser_state>\n\nCurrent screenshot:"
+          }
+        ]
+      }
+    }
+  ]
+}
