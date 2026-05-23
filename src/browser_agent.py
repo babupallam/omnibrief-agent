@@ -59,6 +59,45 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 TRACES_DIR = BASE_DIR / "traces"
+STRIPPED_DOM_TAGS = ("svg", "script", "style", "footer", "nav")
+DOM_STRIPPING_SCRIPT = """
+(function () {
+  const selectors = "svg,script,style,footer,nav";
+  const excludeAttr = "data-browser-use-exclude";
+
+  function markExcluded(root) {
+    const scope = root && root.querySelectorAll ? root : document;
+    scope.querySelectorAll(selectors).forEach((element) => {
+      element.setAttribute(excludeAttr, "true");
+    });
+
+    if (scope.matches && scope.matches(selectors)) {
+      scope.setAttribute(excludeAttr, "true");
+    }
+  }
+
+  markExcluded(document);
+
+  if (!window.__omnibriefDomStripObserver) {
+    window.__omnibriefDomStripObserver = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            markExcluded(node);
+          }
+        }
+      }
+    });
+
+    window.__omnibriefDomStripObserver.observe(document.documentElement || document, {
+      childList: true,
+      subtree: true,
+    });
+  }
+
+  return "OmniBrief DOM stripping active for: " + selectors;
+})();
+""".strip()
 
 
 @dataclass
@@ -142,13 +181,46 @@ def _looks_like_generic_result(result: str, target: dict[str, str]) -> bool:
 
 
 async def _run_agent_for_target(browser: Browser, llm: ChatLangChain, task: str) -> Any:
+    await _install_dom_stripping(browser)
+
     agent = Agent(
         task=task,
         browser=browser,
         llm=llm,
+        initial_actions=_build_initial_actions(task),
+        directly_open_url=False,
         use_judge=True,
     )
     return await agent.run()
+
+
+async def _install_dom_stripping(browser: Browser) -> None:
+    add_init_script = getattr(browser, "_cdp_add_init_script", None)
+    if not callable(add_init_script):
+        logger.warning("Browser session does not expose init-script support; using action-level DOM stripping only.")
+        return
+
+    await browser.start()
+    await add_init_script(DOM_STRIPPING_SCRIPT)
+    logger.info("Installed browser-use DOM stripping for tags: %s", ", ".join(STRIPPED_DOM_TAGS))
+
+
+def _extract_url_from_task(task: str) -> str | None:
+    match = re.search(r"https?://[^\s.]+(?:\.[^\s.]+)+(?:/[^\s]*)?", task)
+    if not match:
+        return None
+    return match.group(0).rstrip(".,)'\"")
+
+
+def _build_initial_actions(task: str) -> list[dict[str, dict[str, Any]]]:
+    url = _extract_url_from_task(task)
+    actions: list[dict[str, dict[str, Any]]] = []
+
+    if url:
+        actions.append({"navigate": {"url": url, "new_tab": False}})
+
+    actions.append({"evaluate": {"code": DOM_STRIPPING_SCRIPT}})
+    return actions
 
 
 def _slugify(value: str) -> str:
