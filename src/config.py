@@ -49,6 +49,9 @@ LLM_TEMPERATURE = _parse_float(os.getenv("LLM_TEMPERATURE"))
 LLM_MAX_TOKENS = _parse_int(os.getenv("LLM_MAX_TOKENS"))
 LLM_TIMEOUT = _parse_int(os.getenv("LLM_TIMEOUT"), default=60)
 HEADLESS_MODE = _parse_bool(os.getenv("HEADLESS_MODE"), default=True)
+AGENT_USE_VISION = _parse_bool(os.getenv("AGENT_USE_VISION"), default=False)
+AGENT_USE_JUDGE = _parse_bool(os.getenv("AGENT_USE_JUDGE"), default=False)
+AGENT_MAX_FAILURES = _parse_int(os.getenv("AGENT_MAX_FAILURES"), default=3)
 
 
 def load_targets(file_path: str | Path = TARGETS_FILE) -> List[Target]:

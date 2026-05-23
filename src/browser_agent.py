@@ -31,6 +31,9 @@ except ModuleNotFoundError as exc:
 
 try:
     from .config import (
+        AGENT_MAX_FAILURES,
+        AGENT_USE_JUDGE,
+        AGENT_USE_VISION,
         API_KEY,
         BASE_DIR,
         BASE_URL,
@@ -44,6 +47,9 @@ try:
     from .telemetry import TokenUsage, _to_jsonable
 except ImportError:
     from config import (
+        AGENT_MAX_FAILURES,
+        AGENT_USE_JUDGE,
+        AGENT_USE_VISION,
         API_KEY,
         BASE_DIR,
         BASE_URL,
@@ -59,6 +65,10 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 TRACES_DIR = BASE_DIR / "traces"
+PROCESS_STARTED_AT = datetime.now()
+DEFAULT_TRACE_RUN_DIR = (
+    TRACES_DIR / f"omnibrief-morning-briefing_{PROCESS_STARTED_AT.strftime('%Y-%m-%d_%H-%M-%S')}"
+)
 STRIPPED_DOM_TAGS = ("svg", "script", "style", "footer", "nav")
 BLOCKED_RESOURCE_PATTERNS = (
     "*.png",
@@ -190,6 +200,8 @@ def _looks_like_generic_result(result: str, target: dict[str, str]) -> bool:
 
     if normalized_result in generic_phrases:
         return True
+    if normalized_result.startswith("navigated to"):
+        return True
     if normalized_name and normalized_result == normalized_name:
         return True
     if hostname_label and normalized_result == hostname_label:
@@ -200,19 +212,84 @@ def _looks_like_generic_result(result: str, target: dict[str, str]) -> bool:
     return False
 
 
-async def _run_agent_for_target(browser: Browser, llm: ChatLangChain, task: str) -> Any:
+def _is_error_result(result: str) -> bool:
+    return not result.strip() or result.strip().lower().startswith("error extracting data:")
+
+
+def _build_browser() -> Browser:
+    return Browser(
+        headless=HEADLESS_MODE,
+        keep_alive=False,
+        storage_state=None,
+        auto_download_pdfs=False,
+        highlight_elements=False,
+        dom_highlight_elements=False,
+    )
+
+
+async def _disable_storage_state_watchdog(browser: Browser) -> None:
+    watchdog = getattr(browser, "_storage_state_watchdog", None)
+    if watchdog is None:
+        return
+
+    try:
+        from browser_use.browser.events import (
+            BrowserConnectedEvent,
+            BrowserStopEvent,
+            LoadStorageStateEvent,
+            SaveStorageStateEvent,
+        )
+        from browser_use.browser.watchdog_base import BaseWatchdog
+    except ImportError:
+        logger.warning("Could not import browser-use watchdog internals; storage persistence remains enabled.")
+        return
+
+    stop_monitoring = getattr(watchdog, "_stop_monitoring", None)
+    if callable(stop_monitoring):
+        result = stop_monitoring()
+        if asyncio.iscoroutine(result):
+            await result
+
+    event_handlers = (
+        (BrowserConnectedEvent, "on_BrowserConnectedEvent"),
+        (BrowserStopEvent, "on_BrowserStopEvent"),
+        (LoadStorageStateEvent, "on_LoadStorageStateEvent"),
+        (SaveStorageStateEvent, "on_SaveStorageStateEvent"),
+    )
+    for event_class, handler_name in event_handlers:
+        handler = getattr(watchdog, handler_name, None)
+        if callable(handler):
+            BaseWatchdog.detach_handler_from_session(browser, event_class, handler)
+
+    browser._storage_state_watchdog = None
+    logger.info("Disabled browser-use storage-state persistence for this ephemeral session.")
+
+
+async def _prepare_browser(browser: Browser) -> None:
     await _install_network_blocking(browser)
     await _install_dom_stripping(browser)
+    await _disable_storage_state_watchdog(browser)
 
-    agent = Agent(
-        task=task,
-        browser=browser,
-        llm=llm,
-        initial_actions=_build_initial_actions(task),
-        directly_open_url=False,
-        use_judge=True,
-    )
-    return await agent.run()
+
+async def _run_agent_for_target(llm: ChatLangChain, task: str) -> Any:
+    browser = _build_browser()
+
+    try:
+        await _prepare_browser(browser)
+
+        agent = Agent(
+            task=task,
+            browser=browser,
+            llm=llm,
+            initial_actions=_build_initial_actions(task),
+            directly_open_url=False,
+            use_vision=AGENT_USE_VISION,
+            use_judge=AGENT_USE_JUDGE,
+            max_failures=AGENT_MAX_FAILURES,
+        )
+        return await agent.run()
+    finally:
+        await _close_browser(browser)
 
 
 async def _ensure_browser_started(browser: Browser) -> None:
@@ -267,7 +344,7 @@ def _build_initial_actions(task: str) -> list[dict[str, dict[str, Any]]]:
 
 
 def _slugify(value: str) -> str:
-    slug = re.sub(r"[^a-zA-Z0-9]+", "_", value).strip("_")
+    slug = re.sub(r"[^a-zA-Z0-9]+", "-", value).strip("-").lower()
     return slug or "target"
 
 
@@ -288,10 +365,12 @@ def _save_trace(
     content: str,
     execution_time_seconds: float,
     error: str | None = None,
+    trace_dir: str | Path | None = None,
 ) -> Path:
-    TRACES_DIR.mkdir(parents=True, exist_ok=True)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    trace_path = TRACES_DIR / f"trace_{_slugify(target.get('name', 'target'))}_{timestamp}.json"
+    output_dir = Path(trace_dir) if trace_dir else DEFAULT_TRACE_RUN_DIR
+    output_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    trace_path = output_dir / f"trace_{_slugify(target.get('name', 'target'))}_{timestamp}.json"
 
     trace_data = {
         "target": {
@@ -339,21 +418,27 @@ def _build_llm() -> ChatLangChain:
 
 
 async def _close_browser(browser: Browser) -> None:
-    for method_name in ("stop", "close", "kill"):
+    if not getattr(browser, "is_cdp_connected", False):
+        return
+
+    for method_name in ("kill", "stop", "close"):
         method = getattr(browser, method_name, None)
         if callable(method):
-            result = method()
-            if asyncio.iscoroutine(result):
-                await result
+            try:
+                result = method()
+                if asyncio.iscoroutine(result):
+                    await result
+            except Exception as exc:
+                logger.warning("Browser cleanup failed during %s(): %s", method_name, exc)
             return
 
 
-async def extract_data(target: dict[str, str]) -> str:
-    result = await extract_data_with_trace(target)
+async def extract_data(target: dict[str, str], trace_dir: str | Path | None = None) -> str:
+    result = await extract_data_with_trace(target, trace_dir=trace_dir)
     return result.content
 
 
-async def extract_data_with_trace(target: dict[str, str]) -> ExtractionResult:
+async def extract_data_with_trace(target: dict[str, str], trace_dir: str | Path | None = None) -> ExtractionResult:
     start_time = time.perf_counter()
     required_keys = {"name", "url", "extraction_prompt"}
     missing_keys = required_keys - target.keys()
@@ -369,6 +454,7 @@ async def extract_data_with_trace(target: dict[str, str]) -> ExtractionResult:
             content=content,
             execution_time_seconds=execution_time,
             error=content,
+            trace_dir=trace_dir,
         )
         return ExtractionResult(
             name=target.get("name", "Unknown"),
@@ -391,6 +477,7 @@ async def extract_data_with_trace(target: dict[str, str]) -> ExtractionResult:
             content=content,
             execution_time_seconds=execution_time,
             error=content,
+            trace_dir=trace_dir,
         )
         return ExtractionResult(
             name=target["name"],
@@ -402,14 +489,13 @@ async def extract_data_with_trace(target: dict[str, str]) -> ExtractionResult:
             trace_path=trace_path,
         )
 
-    browser = Browser(headless=HEADLESS_MODE)
     llm = _build_llm()
     attempts: list[dict[str, Any]] = []
     final_content = ""
     final_status = "failure"
 
     try:
-        history = await _run_agent_for_target(browser, llm, _build_task(target))
+        history = await _run_agent_for_target(llm, _build_task(target))
         result_text = _extract_result_text(history, target["name"])
         attempts.append(
             {
@@ -421,8 +507,11 @@ async def extract_data_with_trace(target: dict[str, str]) -> ExtractionResult:
             }
         )
 
-        if history.is_validated() is False or _looks_like_generic_result(result_text, target):
-            retry_history = await _run_agent_for_target(browser, llm, _build_task(target, retry=True))
+        if _is_error_result(result_text):
+            final_content = result_text
+            final_status = "failure"
+        elif (AGENT_USE_JUDGE and history.is_validated() is False) or _looks_like_generic_result(result_text, target):
+            retry_history = await _run_agent_for_target(llm, _build_task(target, retry=True))
             retry_result_text = _extract_result_text(retry_history, target["name"])
             attempts.append(
                 {
@@ -434,13 +523,21 @@ async def extract_data_with_trace(target: dict[str, str]) -> ExtractionResult:
                 }
             )
 
-            if retry_result_text and not _looks_like_generic_result(retry_result_text, target):
+            if (
+                retry_result_text
+                and not _is_error_result(retry_result_text)
+                and not _looks_like_generic_result(retry_result_text, target)
+            ):
                 final_content = retry_result_text
                 final_status = "success"
-            elif retry_history.is_validated() is True and retry_result_text:
+            elif (
+                retry_history.is_validated() is True
+                and retry_result_text
+                and not _is_error_result(retry_result_text)
+            ):
                 final_content = retry_result_text
                 final_status = "success"
-            elif result_text:
+            elif result_text and not _is_error_result(result_text):
                 final_content = result_text
                 final_status = "failure"
             else:
@@ -458,6 +555,7 @@ async def extract_data_with_trace(target: dict[str, str]) -> ExtractionResult:
             status=final_status,
             content=final_content,
             execution_time_seconds=execution_time,
+            trace_dir=trace_dir,
         )
 
         return ExtractionResult(
@@ -481,6 +579,7 @@ async def extract_data_with_trace(target: dict[str, str]) -> ExtractionResult:
             content=final_content,
             execution_time_seconds=execution_time,
             error=str(exc),
+            trace_dir=trace_dir,
         )
         return ExtractionResult(
             name=target["name"],
@@ -491,5 +590,3 @@ async def extract_data_with_trace(target: dict[str, str]) -> ExtractionResult:
             execution_time_seconds=execution_time,
             trace_path=trace_path,
         )
-    finally:
-        await _close_browser(browser)

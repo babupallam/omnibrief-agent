@@ -7,11 +7,11 @@
   {
     "name": "Hacker News",
     "url": "https://news.ycombinator.com/",
-    "extraction_prompt": "Extract the top 5 Hacker News articles currently listed on the front page. For each article, include the headline, points, comment count, and a 1-sentence summary of the community's reaction based on the comments. Ignore job postings, ads, footer links, and navigational text. CRITICAL: You must extract the requested data and call the 'done' action in your very first step. Do not plan, do not hesitate, just execute."
+    "extraction_prompt": "This is a MULTI-STEP task. First, read the top 3 Hacker News article headlines on the front page, including each article's points and comment count if visible. Then, for EACH of those 3 articles, click into its comment section, read the top comment, and summarize the community reaction in 1 sentence. Gather all requested data for all 3 articles before calling the 'done' action. Ignore job postings, ads, footer links, and navigational text."
   },
   {
     "name": "BBC Weather London",
     "url": "https://www.bbc.com/weather/2643743",
-    "extraction_prompt": "Extract today's weather for London from the visible forecast page, including current conditions, high and low temperature, chance of precipitation, wind if shown, and any notable alerts. Exclude navigation, ads, and unrelated page text. CRITICAL: You must extract the requested data and call the 'done' action in your very first step. Do not plan, do not hesitate, just execute."
+    "extraction_prompt": "First observe the BBC Weather page and ensure the actual temperature numbers have loaded, not just a blank skeleton UI. Then extract today's weather for London, including today's high and low temperature, current conditions, and precipitation. Exclude navigation, ads, and unrelated page text."
   }
 ]

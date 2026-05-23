@@ -23,25 +23,72 @@ SUMMARY_MAX_TOKENS = int(os.getenv("SUMMARY_MAX_TOKENS", "600"))
 SUMMARY_MAX_INPUT_CHARS = int(os.getenv("SUMMARY_MAX_INPUT_CHARS", "12000"))
 
 logger = logging.getLogger(__name__)
+ARTIFACT_PREFIX = "omnibrief-morning-briefing"
 
 
-def _build_report_header(timestamp: datetime) -> str:
-    return f"# Morning Briefing\n\nGenerated on: {timestamp.strftime('%Y-%m-%d %H:%M:%S')}\n"
+def _format_artifact_timestamp(timestamp: datetime) -> str:
+    return timestamp.strftime("%Y-%m-%d_%H-%M-%S")
 
 
-def _format_result_section(result: dict[str, Any]) -> str:
+def _build_run_id(timestamp: datetime) -> str:
+    return f"{ARTIFACT_PREFIX}_{_format_artifact_timestamp(timestamp)}"
+
+
+def _format_local_link(path_value: str | Path, output_file: Path, label: str | None = None) -> str:
+    path = Path(path_value)
+    link_label = label or path.name
+    try:
+        link_target = os.path.relpath(path, start=output_file.parent)
+    except ValueError:
+        link_target = str(path)
+    return f"[{link_label}]({link_target})"
+
+
+def _build_report_header(
+    *,
+    timestamp: datetime,
+    run_id: str,
+    trace_dir: str | Path | None,
+    output_file: Path,
+) -> str:
+    lines = [
+        "# Morning Briefing",
+        "",
+        f"Generated on: {timestamp.strftime('%Y-%m-%d %H:%M:%S')}",
+        f"Run ID: `{run_id}`",
+    ]
+
+    if trace_dir:
+        lines.append(f"Trace folder: {_format_local_link(trace_dir, output_file)}")
+
+    return "\n".join(lines) + "\n"
+
+
+def _format_result_section(result: dict[str, Any], output_file: Path) -> str:
+    target_index = result.get("target_index")
     name = str(result.get("name", "Unnamed Target")).strip() or "Unnamed Target"
     url = str(result.get("url", "")).strip()
     status = str(result.get("status", "unknown")).strip().lower()
     content = str(result.get("content", "")).strip()
+    trace_path = str(result.get("trace_path", "")).strip()
 
     if status == "success":
         body = content or "No content was returned."
     else:
         body = f"Extraction failed.\n\n{content or 'No additional error details were provided.'}"
 
+    heading_prefix = f"{target_index}. " if target_index else ""
     link_line = f"Source: [{url}]({url})" if url else "Source: URL not provided"
-    return f"## {name}\n\n{link_line}\n\n{body}\n"
+    metadata_lines = [
+        link_line,
+        f"Status: `{status}`",
+    ]
+
+    if trace_path:
+        metadata_lines.append(f"Trace file: {_format_local_link(trace_path, output_file)}")
+
+    metadata = "\n\n".join(metadata_lines)
+    return f"## {heading_prefix}{name}\n\n{metadata}\n\n{body}\n"
 
 
 def _build_summary_llm() -> ChatOpenAI:
@@ -132,22 +179,35 @@ def _format_telemetry_section(telemetry: dict[str, Any] | None) -> str:
     )
 
 
-async def generate_markdown_report(results: list[dict[str, Any]], telemetry: dict[str, Any] | None = None) -> Path:
-    timestamp = datetime.now()
+async def generate_markdown_report(
+    results: list[dict[str, Any]],
+    telemetry: dict[str, Any] | None = None,
+    *,
+    run_id: str | None = None,
+    generated_at: datetime | None = None,
+    trace_dir: str | Path | None = None,
+) -> Path:
+    timestamp = generated_at or datetime.now()
+    report_run_id = run_id or _build_run_id(timestamp)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+    output_file = OUTPUT_DIR / f"{report_run_id}.md"
 
     executive_summary = await generate_executive_summary(results)
 
     sections = [
-        _build_report_header(timestamp),
+        _build_report_header(
+            timestamp=timestamp,
+            run_id=report_run_id,
+            trace_dir=trace_dir,
+            output_file=output_file,
+        ),
         _format_executive_summary_section(executive_summary),
     ]
     for result in results:
-        sections.append(_format_result_section(result))
+        sections.append(_format_result_section(result, output_file))
     sections.append(_format_telemetry_section(telemetry))
 
     markdown = "\n".join(sections).strip() + "\n"
-    output_file = OUTPUT_DIR / f"briefing_{timestamp.strftime('%Y-%m-%d_%H%M%S')}.md"
     output_file.write_text(markdown, encoding="utf-8")
 
     return output_file

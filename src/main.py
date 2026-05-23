@@ -4,21 +4,24 @@ import asyncio
 import logging
 import time
 from dataclasses import asdict
+from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 try:
     from .browser_agent import extract_data_with_trace
-    from .config import Target, load_targets
+    from .config import BASE_DIR, Target, load_targets
     from .formatter import generate_markdown_report
     from .telemetry import TokenUsage
 except ImportError:
     from browser_agent import extract_data_with_trace
-    from config import Target, load_targets
+    from config import BASE_DIR, Target, load_targets
     from formatter import generate_markdown_report
     from telemetry import TokenUsage
 
 
 logger = logging.getLogger(__name__)
+ARTIFACT_PREFIX = "omnibrief-morning-briefing"
 
 
 def configure_logging() -> None:
@@ -34,15 +37,26 @@ def _target_to_dict(target: Target) -> dict[str, str]:
     return asdict(target)
 
 
-async def _process_target(index: int, total: int, target: Target) -> dict[str, Any]:
+def _build_run_id(run_started_at: datetime) -> str:
+    return f"{ARTIFACT_PREFIX}_{run_started_at.strftime('%Y-%m-%d_%H-%M-%S')}"
+
+
+def _create_run_trace_dir(run_id: str) -> Path:
+    trace_dir = BASE_DIR / "traces" / run_id
+    trace_dir.mkdir(parents=True, exist_ok=True)
+    return trace_dir
+
+
+async def _process_target(index: int, total: int, target: Target, trace_dir: Path) -> dict[str, Any]:
     target_dict = _target_to_dict(target)
     target_start = time.perf_counter()
 
     logger.info("[%s/%s] Processing %s: %s", index, total, target.name, target.url)
 
     try:
-        extraction = await extract_data_with_trace(target_dict)
+        extraction = await extract_data_with_trace(target_dict, trace_dir=trace_dir)
         result = {
+            "target_index": index,
             "name": target.name,
             "url": target.url,
             "status": extraction.status,
@@ -68,6 +82,7 @@ async def _process_target(index: int, total: int, target: Target) -> dict[str, A
         elapsed = time.perf_counter() - target_start
         logger.exception("[%s/%s] Timed out while processing %s", index, total, target.name)
         return {
+            "target_index": index,
             "name": target.name,
             "url": target.url,
             "status": "failure",
@@ -82,6 +97,7 @@ async def _process_target(index: int, total: int, target: Target) -> dict[str, A
         elapsed = time.perf_counter() - target_start
         logger.exception("[%s/%s] Failed while processing %s", index, total, target.name)
         return {
+            "target_index": index,
             "name": target.name,
             "url": target.url,
             "status": "failure",
@@ -96,6 +112,7 @@ async def _process_target(index: int, total: int, target: Target) -> dict[str, A
 
 async def main() -> None:
     configure_logging()
+    run_started_at = datetime.now()
     run_start = time.perf_counter()
     total_usage = TokenUsage()
 
@@ -106,9 +123,13 @@ async def main() -> None:
         logger.warning("No targets found in targets.json. Nothing to process.")
         return
 
+    run_id = _build_run_id(run_started_at)
+    trace_dir = _create_run_trace_dir(run_id)
+    logger.info("Run ID: %s", run_id)
+    logger.info("Saving trace files for this run under %s", trace_dir)
     logger.info("Processing %s targets concurrently", len(targets))
     tasks = [
-        _process_target(index, len(targets), target)
+        _process_target(index, len(targets), target, trace_dir)
         for index, target in enumerate(targets, start=1)
     ]
     results = await asyncio.gather(*tasks)
@@ -125,6 +146,9 @@ async def main() -> None:
     total_execution_time = time.perf_counter() - run_start
     report_path = await generate_markdown_report(
         results,
+        run_id=run_id,
+        generated_at=run_started_at,
+        trace_dir=trace_dir,
         telemetry={
             "prompt_tokens": total_usage.prompt_tokens,
             "completion_tokens": total_usage.completion_tokens,

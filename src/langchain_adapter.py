@@ -21,8 +21,10 @@ from langchain_core.messages.base import BaseMessage as LangChainBaseMessage
 from pydantic import BaseModel
 
 try:
+    from .config import AGENT_USE_VISION
     from .telemetry import TelemetryRecorder, TokenUsage
 except ImportError:
+    from config import AGENT_USE_VISION
     from telemetry import TelemetryRecorder, TokenUsage
 
 if TYPE_CHECKING:
@@ -40,6 +42,17 @@ class LangChainMessageSerializer:
     ) -> str | list[str | dict]:
         if isinstance(content, str):
             return content
+
+        if not AGENT_USE_VISION:
+            text_parts: list[str] = []
+            for part in content:
+                if part.type == "text":
+                    text_parts.append(part.text)
+                elif part.type == "image_url":
+                    image_url = part.image_url.url
+                    if not image_url.startswith("data:image"):
+                        text_parts.append(f"[Image omitted for text-only model: {image_url}]")
+            return "\n".join(text_parts).strip()
 
         serialized_parts: list[str | dict] = []
         for part in content:
