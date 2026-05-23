@@ -60,6 +60,26 @@ except ImportError:
 logger = logging.getLogger(__name__)
 TRACES_DIR = BASE_DIR / "traces"
 STRIPPED_DOM_TAGS = ("svg", "script", "style", "footer", "nav")
+BLOCKED_RESOURCE_PATTERNS = (
+    "*.png",
+    "*.jpg",
+    "*.jpeg",
+    "*.gif",
+    "*.svg",
+    "*.css",
+    "*.woff",
+    "*.woff2",
+    "*.ttf",
+    "*://*/*.png*",
+    "*://*/*.jpg*",
+    "*://*/*.jpeg*",
+    "*://*/*.gif*",
+    "*://*/*.svg*",
+    "*://*/*.css*",
+    "*://*/*.woff*",
+    "*://*/*.woff2*",
+    "*://*/*.ttf*",
+)
 DOM_STRIPPING_SCRIPT = """
 (function () {
   const selectors = "svg,script,style,footer,nav";
@@ -181,6 +201,7 @@ def _looks_like_generic_result(result: str, target: dict[str, str]) -> bool:
 
 
 async def _run_agent_for_target(browser: Browser, llm: ChatLangChain, task: str) -> Any:
+    await _install_network_blocking(browser)
     await _install_dom_stripping(browser)
 
     agent = Agent(
@@ -194,13 +215,35 @@ async def _run_agent_for_target(browser: Browser, llm: ChatLangChain, task: str)
     return await agent.run()
 
 
+async def _ensure_browser_started(browser: Browser) -> None:
+    if getattr(browser, "is_cdp_connected", False):
+        return
+    await browser.start()
+
+
+async def _install_network_blocking(browser: Browser) -> None:
+    await _ensure_browser_started(browser)
+    cdp_session = await browser.get_or_create_cdp_session()
+
+    await cdp_session.cdp_client.send.Network.enable(session_id=cdp_session.session_id)
+    await cdp_session.cdp_client.send.Network.setBlockedURLs(
+        params={"urls": list(BLOCKED_RESOURCE_PATTERNS)},
+        session_id=cdp_session.session_id,
+    )
+
+    logger.info(
+        "Installed browser network blocking for media, stylesheets, and fonts: %s",
+        ", ".join(BLOCKED_RESOURCE_PATTERNS),
+    )
+
+
 async def _install_dom_stripping(browser: Browser) -> None:
     add_init_script = getattr(browser, "_cdp_add_init_script", None)
     if not callable(add_init_script):
         logger.warning("Browser session does not expose init-script support; using action-level DOM stripping only.")
         return
 
-    await browser.start()
+    await _ensure_browser_started(browser)
     await add_init_script(DOM_STRIPPING_SCRIPT)
     logger.info("Installed browser-use DOM stripping for tags: %s", ", ".join(STRIPPED_DOM_TAGS))
 
