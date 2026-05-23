@@ -42,6 +42,12 @@ def _parse_int(value: str | None, default: int | None = None) -> int | None:
     return int(value.strip())
 
 
+def _parse_csv(value: str | None, default: list[str] | None = None) -> list[str]:
+    if value is None or not value.strip():
+        return list(default or [])
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+
 API_KEY = os.getenv("API_KEY", "").strip() or os.getenv("OPENAI_API_KEY", "").strip()
 BASE_URL = os.getenv("BASE_URL", "").strip()
 LLM_MODEL = os.getenv("LLM_MODEL", "").strip() or os.getenv("OPENAI_MODEL", "gpt-4.1-mini").strip()
@@ -52,6 +58,11 @@ HEADLESS_MODE = _parse_bool(os.getenv("HEADLESS_MODE"), default=True)
 AGENT_USE_VISION = _parse_bool(os.getenv("AGENT_USE_VISION"), default=False)
 AGENT_USE_JUDGE = _parse_bool(os.getenv("AGENT_USE_JUDGE"), default=False)
 AGENT_MAX_FAILURES = _parse_int(os.getenv("AGENT_MAX_FAILURES"), default=3)
+AGENT_CONTEXT_MINIMIZATION = _parse_bool(os.getenv("AGENT_CONTEXT_MINIMIZATION"), default=True)
+AGENT_INCLUDE_ATTRIBUTES = _parse_csv(
+    os.getenv("AGENT_INCLUDE_ATTRIBUTES"),
+    default=["href", "src", "id", "aria-label", "title", "alt"],
+)
 
 
 def load_targets(file_path: str | Path = TARGETS_FILE) -> List[Target]:

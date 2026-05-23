@@ -31,6 +31,8 @@ except ModuleNotFoundError as exc:
 
 try:
     from .config import (
+        AGENT_CONTEXT_MINIMIZATION,
+        AGENT_INCLUDE_ATTRIBUTES,
         AGENT_MAX_FAILURES,
         AGENT_USE_JUDGE,
         AGENT_USE_VISION,
@@ -47,6 +49,8 @@ try:
     from .telemetry import TokenUsage, _to_jsonable
 except ImportError:
     from config import (
+        AGENT_CONTEXT_MINIMIZATION,
+        AGENT_INCLUDE_ATTRIBUTES,
         AGENT_MAX_FAILURES,
         AGENT_USE_JUDGE,
         AGENT_USE_VISION,
@@ -69,7 +73,15 @@ PROCESS_STARTED_AT = datetime.now()
 DEFAULT_TRACE_RUN_DIR = (
     TRACES_DIR / f"omnibrief-morning-briefing_{PROCESS_STARTED_AT.strftime('%Y-%m-%d_%H-%M-%S')}"
 )
-STRIPPED_DOM_TAGS = ("svg", "script", "style", "footer", "nav")
+STRIPPED_DOM_TAGS = ("svg", "script", "style", "footer", "nav", "noscript", "iframe")
+HIDDEN_DOM_SELECTORS = (
+    "[hidden]",
+    "[aria-hidden='true']",
+    "[style*='display: none']",
+    "[style*='display:none']",
+    "[style*='visibility: hidden']",
+    "[style*='visibility:hidden']",
+)
 BLOCKED_RESOURCE_PATTERNS = (
     "*.png",
     "*.jpg",
@@ -92,7 +104,7 @@ BLOCKED_RESOURCE_PATTERNS = (
 )
 DOM_STRIPPING_SCRIPT = """
 (function () {
-  const selectors = "svg,script,style,footer,nav";
+  const selectors = "svg,script,style,footer,nav,noscript,iframe,[hidden],[aria-hidden='true'],[style*='display: none'],[style*='display:none'],[style*='visibility: hidden'],[style*='visibility:hidden']";
   const excludeAttr = "data-browser-use-exclude";
 
   function markExcluded(root) {
@@ -129,6 +141,16 @@ DOM_STRIPPING_SCRIPT = """
 })();
 """.strip()
 
+CONTEXT_MINIMIZATION_INSTRUCTIONS = """
+DOM/context minimization rules for this extraction:
+- Treat the browser DOM as a noisy source. Use only nodes that directly satisfy the extraction task.
+- Preserve high-information content blocks with dense visible text, numeric metrics, article titles, timestamps, scores, comment counts, weather values, and data-bearing links.
+- Preserve critical navigation paths needed to complete the task, including article links, comment links, item IDs, and pagination controls.
+- Ignore boilerplate: global navigation, footers, headers unrelated to the target, cookie banners, ads, sign-in prompts, sidebar recommendations, social sharing widgets, decorative media, hidden elements, skeleton placeholders, telemetry labels, and tracking text.
+- If a value is missing, hidden, still loading, or unverified, return "not available" instead of guessing.
+- Do not output a token minimization report, DOM analysis, pruning rationale, or implementation details. Output only the requested extracted result.
+""".strip()
+
 
 @dataclass
 class ExtractionResult:
@@ -150,6 +172,9 @@ def _build_task(target: dict[str, str], retry: bool = False) -> str:
         "Return only the extracted result in clean, readable text.",
         "Do not return the site name, section name, page title, domain, or generic labels like 'Homepage' unless that exact text is truly the requested content.",
     ]
+
+    if AGENT_CONTEXT_MINIMIZATION:
+        base_instructions.append(CONTEXT_MINIMIZATION_INSTRUCTIONS)
 
     if retry:
         base_instructions.extend(
@@ -286,6 +311,7 @@ async def _run_agent_for_target(llm: ChatLangChain, task: str) -> Any:
             use_vision=AGENT_USE_VISION,
             use_judge=AGENT_USE_JUDGE,
             max_failures=AGENT_MAX_FAILURES,
+            include_attributes=AGENT_INCLUDE_ATTRIBUTES if AGENT_CONTEXT_MINIMIZATION else None,
         )
         return await agent.run()
     finally:
@@ -322,7 +348,10 @@ async def _install_dom_stripping(browser: Browser) -> None:
 
     await _ensure_browser_started(browser)
     await add_init_script(DOM_STRIPPING_SCRIPT)
-    logger.info("Installed browser-use DOM stripping for tags: %s", ", ".join(STRIPPED_DOM_TAGS))
+    logger.info(
+        "Installed browser-use DOM stripping for tags/selectors: %s",
+        ", ".join((*STRIPPED_DOM_TAGS, *HIDDEN_DOM_SELECTORS)),
+    )
 
 
 def _extract_url_from_task(task: str) -> str | None:
