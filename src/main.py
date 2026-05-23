@@ -123,7 +123,7 @@ async def main() -> None:
         )
 
     total_execution_time = time.perf_counter() - run_start
-    report_path = generate_markdown_report(
+    report_path = await generate_markdown_report(
         results,
         telemetry={
             "prompt_tokens": total_usage.prompt_tokens,
