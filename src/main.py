@@ -34,6 +34,66 @@ def _target_to_dict(target: Target) -> dict[str, str]:
     return asdict(target)
 
 
+async def _process_target(index: int, total: int, target: Target) -> dict[str, Any]:
+    target_dict = _target_to_dict(target)
+    target_start = time.perf_counter()
+
+    logger.info("[%s/%s] Processing %s: %s", index, total, target.name, target.url)
+
+    try:
+        extraction = await extract_data_with_trace(target_dict)
+        result = {
+            "name": target.name,
+            "url": target.url,
+            "status": extraction.status,
+            "content": extraction.content,
+            "trace_path": str(extraction.trace_path) if extraction.trace_path else "",
+            "prompt_tokens": extraction.token_usage.prompt_tokens,
+            "completion_tokens": extraction.token_usage.completion_tokens,
+            "total_tokens": extraction.token_usage.total_tokens,
+            "execution_time_seconds": round(extraction.execution_time_seconds, 3),
+        }
+
+        logger.info(
+            "[%s/%s] Finished %s with status=%s tokens=%s trace=%s",
+            index,
+            total,
+            target.name,
+            extraction.status,
+            extraction.token_usage.total_tokens,
+            extraction.trace_path,
+        )
+        return result
+    except asyncio.TimeoutError:
+        elapsed = time.perf_counter() - target_start
+        logger.exception("[%s/%s] Timed out while processing %s", index, total, target.name)
+        return {
+            "name": target.name,
+            "url": target.url,
+            "status": "failure",
+            "content": f"Extraction timed out for {target.name}.",
+            "trace_path": "",
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "execution_time_seconds": round(elapsed, 3),
+        }
+    except Exception as exc:
+        elapsed = time.perf_counter() - target_start
+        logger.exception("[%s/%s] Failed while processing %s", index, total, target.name)
+        return {
+            "name": target.name,
+            "url": target.url,
+            "status": "failure",
+            "content": f"Extraction failed for {target.name}: {exc}",
+            "trace_path": "",
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "total_tokens": 0,
+            "execution_time_seconds": round(elapsed, 3),
+        }
+
+
 async def main() -> None:
     configure_logging()
     run_start = time.perf_counter()
@@ -46,37 +106,20 @@ async def main() -> None:
         logger.warning("No targets found in targets.json. Nothing to process.")
         return
 
-    results: list[dict[str, Any]] = []
+    logger.info("Processing %s targets concurrently", len(targets))
+    tasks = [
+        _process_target(index, len(targets), target)
+        for index, target in enumerate(targets, start=1)
+    ]
+    results = await asyncio.gather(*tasks)
 
-    for index, target in enumerate(targets, start=1):
-        target_dict = _target_to_dict(target)
-        logger.info("[%s/%s] Processing %s: %s", index, len(targets), target.name, target.url)
-
-        extraction = await extract_data_with_trace(target_dict)
-        total_usage.add(extraction.token_usage)
-
-        results.append(
-            {
-                "name": target.name,
-                "url": target.url,
-                "status": extraction.status,
-                "content": extraction.content,
-                "trace_path": str(extraction.trace_path) if extraction.trace_path else "",
-                "prompt_tokens": extraction.token_usage.prompt_tokens,
-                "completion_tokens": extraction.token_usage.completion_tokens,
-                "total_tokens": extraction.token_usage.total_tokens,
-                "execution_time_seconds": round(extraction.execution_time_seconds, 3),
-            }
-        )
-
-        logger.info(
-            "[%s/%s] Finished %s with status=%s tokens=%s trace=%s",
-            index,
-            len(targets),
-            target.name,
-            extraction.status,
-            extraction.token_usage.total_tokens,
-            extraction.trace_path,
+    for result in results:
+        total_usage.add(
+            TokenUsage(
+                prompt_tokens=int(result.get("prompt_tokens", 0) or 0),
+                completion_tokens=int(result.get("completion_tokens", 0) or 0),
+                total_tokens=int(result.get("total_tokens", 0) or 0),
+            )
         )
 
     total_execution_time = time.perf_counter() - run_start
