@@ -2,16 +2,16 @@
   {
     "name": "Wikipedia Current Events",
     "url": "https://en.wikipedia.org/wiki/Portal:Current_events",
-    "extraction_prompt": "Look at the main content area for the current date. Extract the top 3 news bullet points. Read the actual visible page content. Do not include sidebar text or navigation links."
+    "extraction_prompt": "From the main current-events content for today's date, extract the top 3 news bullet points. Include only the visible event text from the article body and exclude sidebar text, navigation links, references, and page furniture. CRITICAL: You must extract the requested data and call the 'done' action in your very first step. Do not plan, do not hesitate, just execute."
   },
   {
     "name": "Hacker News",
     "url": "https://news.ycombinator.com/",
-    "extraction_prompt": "Extract the top 3 article headlines and the number of points they currently have. Ignore job postings or navigational text."
+    "extraction_prompt": "Extract the top 5 Hacker News articles currently listed on the front page. For each article, include the headline, points, comment count, and a 1-sentence summary of the community's reaction based on the comments. Ignore job postings, ads, footer links, and navigational text. CRITICAL: You must extract the requested data and call the 'done' action in your very first step. Do not plan, do not hesitate, just execute."
   },
   {
     "name": "BBC Weather London",
     "url": "https://www.bbc.com/weather/2643743",
-    "extraction_prompt": "Extract today's weather for London, including current conditions, high/low temperature, and any notable alerts. Read the actual visible page content before answering."
+    "extraction_prompt": "Extract today's weather for London from the visible forecast page, including current conditions, high and low temperature, chance of precipitation, wind if shown, and any notable alerts. Exclude navigation, ads, and unrelated page text. CRITICAL: You must extract the requested data and call the 'done' action in your very first step. Do not plan, do not hesitate, just execute."
   }
 ]
