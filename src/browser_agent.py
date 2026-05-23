@@ -1,7 +1,13 @@
 from __future__ import annotations
 
 import asyncio
+import json
+import logging
 import re
+import time
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
@@ -26,6 +32,7 @@ except ModuleNotFoundError as exc:
 try:
     from .config import (
         API_KEY,
+        BASE_DIR,
         BASE_URL,
         HEADLESS_MODE,
         LLM_MAX_TOKENS,
@@ -34,9 +41,11 @@ try:
         LLM_TIMEOUT,
     )
     from .langchain_adapter import ChatLangChain
+    from .telemetry import TokenUsage, _to_jsonable
 except ImportError:
     from config import (
         API_KEY,
+        BASE_DIR,
         BASE_URL,
         HEADLESS_MODE,
         LLM_MAX_TOKENS,
@@ -45,6 +54,22 @@ except ImportError:
         LLM_TIMEOUT,
     )
     from langchain_adapter import ChatLangChain
+    from telemetry import TokenUsage, _to_jsonable
+
+
+logger = logging.getLogger(__name__)
+TRACES_DIR = BASE_DIR / "traces"
+
+
+@dataclass
+class ExtractionResult:
+    name: str
+    url: str
+    status: str
+    content: str
+    token_usage: TokenUsage
+    execution_time_seconds: float
+    trace_path: Path | None = None
 
 
 def _build_task(target: dict[str, str], retry: bool = False) -> str:
@@ -126,6 +151,59 @@ async def _run_agent_for_target(browser: Browser, llm: ChatLangChain, task: str)
     return await agent.run()
 
 
+def _slugify(value: str) -> str:
+    slug = re.sub(r"[^a-zA-Z0-9]+", "_", value).strip("_")
+    return slug or "target"
+
+
+def _serialize_history(history: Any) -> dict[str, Any] | None:
+    if history is None:
+        return None
+    if hasattr(history, "model_dump"):
+        return history.model_dump()
+    return _to_jsonable(history)
+
+
+def _save_trace(
+    *,
+    target: dict[str, str],
+    attempts: list[dict[str, Any]],
+    telemetry: dict[str, Any],
+    status: str,
+    content: str,
+    execution_time_seconds: float,
+    error: str | None = None,
+) -> Path:
+    TRACES_DIR.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    trace_path = TRACES_DIR / f"trace_{_slugify(target.get('name', 'target'))}_{timestamp}.json"
+
+    trace_data = {
+        "target": {
+            "name": target.get("name"),
+            "url": target.get("url"),
+            "extraction_prompt": target.get("extraction_prompt"),
+        },
+        "status": status,
+        "content": content,
+        "error": error,
+        "execution_time_seconds": round(execution_time_seconds, 3),
+        "telemetry": telemetry,
+        "attempts": attempts,
+    }
+
+    trace_path.write_text(json.dumps(_to_jsonable(trace_data), indent=2), encoding="utf-8")
+    logger.info("Saved execution trace to %s", trace_path)
+    return trace_path
+
+
+def _empty_telemetry() -> dict[str, Any]:
+    return {
+        "total_usage": TokenUsage().to_dict(),
+        "llm_calls": [],
+    }
+
+
 def _build_llm() -> ChatLangChain:
     llm_kwargs: dict[str, Any] = {
         "model": LLM_MODEL,
@@ -156,39 +234,147 @@ async def _close_browser(browser: Browser) -> None:
 
 
 async def extract_data(target: dict[str, str]) -> str:
+    result = await extract_data_with_trace(target)
+    return result.content
+
+
+async def extract_data_with_trace(target: dict[str, str]) -> ExtractionResult:
+    start_time = time.perf_counter()
     required_keys = {"name", "url", "extraction_prompt"}
     missing_keys = required_keys - target.keys()
     if missing_keys:
         missing = ", ".join(sorted(missing_keys))
-        return f"Error extracting data: target is missing required keys: {missing}"
+        content = f"Error extracting data: target is missing required keys: {missing}"
+        execution_time = time.perf_counter() - start_time
+        trace_path = _save_trace(
+            target=target,
+            attempts=[],
+            telemetry=_empty_telemetry(),
+            status="failure",
+            content=content,
+            execution_time_seconds=execution_time,
+            error=content,
+        )
+        return ExtractionResult(
+            name=target.get("name", "Unknown"),
+            url=target.get("url", ""),
+            status="failure",
+            content=content,
+            token_usage=TokenUsage(),
+            execution_time_seconds=execution_time,
+            trace_path=trace_path,
+        )
 
     if not API_KEY:
-        return "Error extracting data: API_KEY is not set."
+        content = "Error extracting data: API_KEY is not set."
+        execution_time = time.perf_counter() - start_time
+        trace_path = _save_trace(
+            target=target,
+            attempts=[],
+            telemetry=_empty_telemetry(),
+            status="failure",
+            content=content,
+            execution_time_seconds=execution_time,
+            error=content,
+        )
+        return ExtractionResult(
+            name=target["name"],
+            url=target["url"],
+            status="failure",
+            content=content,
+            token_usage=TokenUsage(),
+            execution_time_seconds=execution_time,
+            trace_path=trace_path,
+        )
 
     browser = Browser(headless=HEADLESS_MODE)
     llm = _build_llm()
+    attempts: list[dict[str, Any]] = []
+    final_content = ""
+    final_status = "failure"
 
     try:
         history = await _run_agent_for_target(browser, llm, _build_task(target))
         result_text = _extract_result_text(history, target["name"])
+        attempts.append(
+            {
+                "attempt": 1,
+                "task": _build_task(target),
+                "validated": history.is_validated(),
+                "final_result": result_text,
+                "history": _serialize_history(history),
+            }
+        )
 
         if history.is_validated() is False or _looks_like_generic_result(result_text, target):
             retry_history = await _run_agent_for_target(browser, llm, _build_task(target, retry=True))
             retry_result_text = _extract_result_text(retry_history, target["name"])
+            attempts.append(
+                {
+                    "attempt": 2,
+                    "task": _build_task(target, retry=True),
+                    "validated": retry_history.is_validated(),
+                    "final_result": retry_result_text,
+                    "history": _serialize_history(retry_history),
+                }
+            )
 
             if retry_result_text and not _looks_like_generic_result(retry_result_text, target):
-                return retry_result_text
+                final_content = retry_result_text
+                final_status = "success"
+            elif retry_history.is_validated() is True and retry_result_text:
+                final_content = retry_result_text
+                final_status = "success"
+            elif result_text:
+                final_content = result_text
+                final_status = "failure"
+            else:
+                final_content = retry_result_text
+                final_status = "failure"
+        else:
+            final_content = result_text
+            final_status = "success"
 
-            if retry_history.is_validated() is True and retry_result_text:
-                return retry_result_text
+        execution_time = time.perf_counter() - start_time
+        trace_path = _save_trace(
+            target=target,
+            attempts=attempts,
+            telemetry=llm.telemetry.to_dict(),
+            status=final_status,
+            content=final_content,
+            execution_time_seconds=execution_time,
+        )
 
-            if result_text:
-                return result_text
-
-            return retry_result_text
-
-        return result_text
+        return ExtractionResult(
+            name=target["name"],
+            url=target["url"],
+            status=final_status,
+            content=final_content,
+            token_usage=llm.telemetry.total_usage,
+            execution_time_seconds=execution_time,
+            trace_path=trace_path,
+        )
     except Exception as exc:
-        return f"Error extracting data from {target['name']} ({target['url']}): {exc}"
+        execution_time = time.perf_counter() - start_time
+        final_content = f"Error extracting data from {target['name']} ({target['url']}): {exc}"
+        logger.exception("Extraction failed for %s", target["name"])
+        trace_path = _save_trace(
+            target=target,
+            attempts=attempts,
+            telemetry=llm.telemetry.to_dict(),
+            status="failure",
+            content=final_content,
+            execution_time_seconds=execution_time,
+            error=str(exc),
+        )
+        return ExtractionResult(
+            name=target["name"],
+            url=target["url"],
+            status="failure",
+            content=final_content,
+            token_usage=llm.telemetry.total_usage,
+            execution_time_seconds=execution_time,
+            trace_path=trace_path,
+        )
     finally:
         await _close_browser(browser)

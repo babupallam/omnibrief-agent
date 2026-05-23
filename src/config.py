@@ -81,6 +81,3 @@ def load_targets(file_path: str | Path = TARGETS_FILE) -> List[Target]:
             )
         )
     return targets
-
-#for testing
-#print(load_targets())

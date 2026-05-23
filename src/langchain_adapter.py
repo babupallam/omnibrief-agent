@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, TypeVar, overload
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any, TypeVar, overload
 
 from browser_use.llm.base import BaseChatModel
 from browser_use.llm.exceptions import ModelProviderError
@@ -19,6 +19,11 @@ from browser_use.llm.views import ChatInvokeCompletion, ChatInvokeUsage
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.messages.base import BaseMessage as LangChainBaseMessage
 from pydantic import BaseModel
+
+try:
+    from .telemetry import TelemetryRecorder, TokenUsage
+except ImportError:
+    from telemetry import TelemetryRecorder, TokenUsage
 
 if TYPE_CHECKING:
     from langchain_core.language_models.chat_models import BaseChatModel as LangChainBaseChatModel
@@ -98,6 +103,7 @@ class LangChainMessageSerializer:
 @dataclass
 class ChatLangChain(BaseChatModel):
     chat: "LangChainBaseChatModel"
+    telemetry: TelemetryRecorder = field(default_factory=TelemetryRecorder)
 
     @staticmethod
     def _build_langchain_invoke_kwargs(kwargs: dict[str, object]) -> dict[str, object]:
@@ -144,20 +150,60 @@ class ChatLangChain(BaseChatModel):
 
         return self.chat.__class__.__name__
 
+    def _extract_token_usage(self, response: "LangChainAIMessage") -> TokenUsage:
+        usage = getattr(response, "usage_metadata", None)
+        if usage:
+            return TokenUsage(
+                prompt_tokens=usage.get("input_tokens", 0) or 0,
+                completion_tokens=usage.get("output_tokens", 0) or 0,
+                total_tokens=usage.get("total_tokens", 0) or 0,
+            )
+
+        response_metadata = getattr(response, "response_metadata", None) or {}
+        token_usage = response_metadata.get("token_usage") or response_metadata.get("usage") or {}
+        return TokenUsage(
+            prompt_tokens=token_usage.get("prompt_tokens", 0) or token_usage.get("input_tokens", 0) or 0,
+            completion_tokens=token_usage.get("completion_tokens", 0) or token_usage.get("output_tokens", 0) or 0,
+            total_tokens=token_usage.get("total_tokens", 0) or 0,
+        )
+
     def _get_usage(self, response: "LangChainAIMessage") -> ChatInvokeUsage | None:
         usage = getattr(response, "usage_metadata", None)
-        if usage is None:
+        input_token_details = usage.get("input_token_details") if usage else {}
+        input_token_details = input_token_details or {}
+        token_usage = self._extract_token_usage(response)
+
+        if token_usage.total_tokens == 0 and token_usage.prompt_tokens == 0 and token_usage.completion_tokens == 0:
             return None
 
-        input_token_details = usage.get("input_token_details") or {}
         return ChatInvokeUsage(
-            prompt_tokens=usage.get("input_tokens", 0) or 0,
+            prompt_tokens=token_usage.prompt_tokens,
             prompt_cached_tokens=input_token_details.get("cache_read"),
             prompt_cache_creation_tokens=input_token_details.get("cache_creation"),
             prompt_image_tokens=None,
-            completion_tokens=usage.get("output_tokens", 0) or 0,
-            total_tokens=usage.get("total_tokens", 0) or 0,
+            completion_tokens=token_usage.completion_tokens,
+            total_tokens=token_usage.total_tokens,
         )
+
+    def _record_response_usage(
+        self,
+        response: "LangChainAIMessage",
+        *,
+        request_type: str,
+        output_format: type[BaseModel] | None,
+    ) -> ChatInvokeUsage | None:
+        usage = self._get_usage(response)
+        token_usage = self._extract_token_usage(response)
+        self.telemetry.record_call(
+            provider=self.provider,
+            model=self.name,
+            request_type=request_type,
+            output_format=output_format.__name__ if output_format else None,
+            usage=token_usage,
+            raw_response=getattr(response, "content", None),
+            response_metadata=getattr(response, "response_metadata", None) or {},
+        )
+        return usage
 
     @overload
     async def ainvoke(
@@ -183,6 +229,7 @@ class ChatLangChain(BaseChatModel):
     ) -> ChatInvokeCompletion[T] | ChatInvokeCompletion[str]:
         langchain_messages = LangChainMessageSerializer.serialize_messages(messages)
         invoke_kwargs = self._build_langchain_invoke_kwargs(kwargs)
+        request_type = str(kwargs.get("request_type") or ("structured_output" if output_format else "browser_agent"))
 
         try:
             if output_format is None:
@@ -195,13 +242,72 @@ class ChatLangChain(BaseChatModel):
 
                 return ChatInvokeCompletion(
                     completion=str(response.content),
-                    usage=self._get_usage(response),
+                    usage=self._record_response_usage(
+                        response,
+                        request_type=request_type,
+                        output_format=None,
+                    ),
                 )
 
             if hasattr(self.chat, "with_structured_output"):
-                structured_chat = self.chat.with_structured_output(output_format)
-                parsed_object = await structured_chat.ainvoke(langchain_messages, **invoke_kwargs)  # type: ignore[arg-type]
-                return ChatInvokeCompletion(completion=parsed_object, usage=None)
+                try:
+                    structured_chat = self.chat.with_structured_output(output_format, include_raw=True)
+                    structured_response = await structured_chat.ainvoke(langchain_messages, **invoke_kwargs)  # type: ignore[arg-type]
+                except TypeError:
+                    structured_chat = self.chat.with_structured_output(output_format)
+                    parsed_object = await structured_chat.ainvoke(langchain_messages, **invoke_kwargs)  # type: ignore[arg-type]
+                    self.telemetry.record_call(
+                        provider=self.provider,
+                        model=self.name,
+                        request_type=request_type,
+                        output_format=output_format.__name__,
+                        usage=TokenUsage(),
+                        raw_response=parsed_object,
+                        response_metadata={"usage_missing": True},
+                    )
+                    return ChatInvokeCompletion(completion=parsed_object, usage=None)
+
+                if not isinstance(structured_response, dict):
+                    self.telemetry.record_call(
+                        provider=self.provider,
+                        model=self.name,
+                        request_type=request_type,
+                        output_format=output_format.__name__,
+                        usage=TokenUsage(),
+                        raw_response=structured_response,
+                        response_metadata={"usage_missing": True},
+                    )
+                    return ChatInvokeCompletion(completion=structured_response, usage=None)
+
+                raw_response = structured_response.get("raw")
+                parsed_object = structured_response.get("parsed")
+                parsing_error = structured_response.get("parsing_error")
+
+                if isinstance(raw_response, AIMessage):
+                    usage = self._record_response_usage(
+                        raw_response,
+                        request_type=request_type,
+                        output_format=output_format,
+                    )
+                else:
+                    usage = None
+                    self.telemetry.record_call(
+                        provider=self.provider,
+                        model=self.name,
+                        request_type=request_type,
+                        output_format=output_format.__name__,
+                        usage=TokenUsage(),
+                        raw_response=raw_response,
+                        response_metadata={"usage_missing": True},
+                    )
+
+                if parsed_object is None and parsing_error is not None:
+                    raise ModelProviderError(
+                        message=f"Structured output parsing failed: {parsing_error}",
+                        model=self.name,
+                    )
+
+                return ChatInvokeCompletion(completion=parsed_object, usage=usage)
 
             response = await self.chat.ainvoke(langchain_messages, **invoke_kwargs)  # type: ignore[arg-type]
             if not isinstance(response, AIMessage):
@@ -226,7 +332,11 @@ class ChatLangChain(BaseChatModel):
 
             return ChatInvokeCompletion(
                 completion=output_format(**parsed_data),
-                usage=self._get_usage(response),
+                usage=self._record_response_usage(
+                    response,
+                    request_type=request_type,
+                    output_format=output_format,
+                ),
             )
         except ModelProviderError:
             raise

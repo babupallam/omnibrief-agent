@@ -1,12 +1,17 @@
 [
   {
-    "name": "Reuters World News",
-    "url": "https://www.reuters.com/world/",
-    "extraction_prompt": "Extract the top 3 world news headlines. For each item, include the headline and a one-sentence summary if available."
+    "name": "Wikipedia Current Events",
+    "url": "https://en.wikipedia.org/wiki/Portal:Current_events",
+    "extraction_prompt": "Look at the main content area for the current date. Extract the top 3 news bullet points. Read the actual visible page content. Do not include sidebar text or navigation links."
+  },
+  {
+    "name": "Hacker News",
+    "url": "https://news.ycombinator.com/",
+    "extraction_prompt": "Extract the top 3 article headlines and the number of points they currently have. Ignore job postings or navigational text."
   },
   {
     "name": "BBC Weather London",
     "url": "https://www.bbc.com/weather/2643743",
-    "extraction_prompt": "Extract today's weather for London, including current conditions, high/low temperature, and any notable alerts or precipitation forecast."
+    "extraction_prompt": "Extract today's weather for London, including current conditions, high/low temperature, and any notable alerts. Read the actual visible page content before answering."
   }
 ]
